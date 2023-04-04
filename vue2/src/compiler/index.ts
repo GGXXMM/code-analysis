@@ -11,10 +11,13 @@ export const createCompiler = createCompilerCreator(function baseCompile(
   template: string,
   options: CompilerOptions
 ): CompiledResult {
+  // 1. ast
   const ast = parse(template.trim(), options)
   if (options.optimize !== false) {
+    // 2. optimize优化ast
     optimize(ast, options)
   }
+  // 3. generate生成render
   const code = generate(ast, options)
   return {
     ast,
