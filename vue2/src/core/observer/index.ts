@@ -124,6 +124,10 @@ export function observe(
 
 /**
  * Define a reactive property on an Object.
+ * 响应式函数
+ * 拦截 obj[key] 的读取和设值：
+ * 1、在第一次读取时收集依赖，比如执行 render 函数生成虚拟 DOM 时会有读取操作
+ * 2、在更新时设置新值并通知依赖更新
  */
 export function defineReactive(
   obj: object,
@@ -133,14 +137,16 @@ export function defineReactive(
   shallow?: boolean,
   mock?: boolean
 ) {
+  // 实例化 dep，一个 key 一个 dep
   const dep = new Dep()
-
+  // 获取 obj[key] 的属性描述符，发现它是不可配置对象的话直接 return
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
   }
 
   // cater for pre-defined getter/setters
+  // 记录 getter 和 setter，获取 val 值
   const getter = property && property.get
   const setter = property && property.set
   if (
@@ -150,13 +156,19 @@ export function defineReactive(
     val = obj[key]
   }
 
+  // 递归调用，处理 val 即 obj[key] 的值为对象的情况，保证对象中的所有 key 都被观察
   let childOb = !shallow && observe(val, false, mock)
+  /** 响应式的核心 */
   Object.defineProperty(obj, key, {
+    // 可枚举的
     enumerable: true,
+    // 可配置的
     configurable: true,
+    // get 拦截对 obj[key] 的读取操作
     get: function reactiveGetter() {
       const value = getter ? getter.call(obj) : val
       if (Dep.target) {
+        // 依赖收集，在 dep 中添加 watcher，也在 watcher 中添加 dep
         if (__DEV__) {
           dep.depend({
             target: obj,
@@ -166,23 +178,29 @@ export function defineReactive(
         } else {
           dep.depend()
         }
+        // childOb 表示对象中嵌套对象的观察者对象，如果存在也对其进行依赖收集
         if (childOb) {
           childOb.dep.depend()
+          // 如果 obj[key] 是数组，则触发数组响应式
           if (isArray(value)) {
+            // 为数组项的对象项添加依赖
             dependArray(value)
           }
         }
       }
       return isRef(value) && !shallow ? value.value : value
     },
+    // set 拦截对 obj[key] 的设置操作
     set: function reactiveSetter(newVal) {
       const value = getter ? getter.call(obj) : val
+      // 如果新老值一样，则直接 return
       if (!hasChanged(value, newVal)) {
         return
       }
       if (__DEV__ && customSetter) {
         customSetter()
       }
+      // 设置新值
       if (setter) {
         setter.call(obj, newVal)
       } else if (getter) {
@@ -194,7 +212,9 @@ export function defineReactive(
       } else {
         val = newVal
       }
+      // 对新值进行观察，让新值也是响应式的
       childOb = !shallow && observe(newVal, false, mock)
+      // 依赖通知更新
       if (__DEV__) {
         dep.notify({
           type: TriggerOpTypes.SET,
