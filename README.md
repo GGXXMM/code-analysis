@@ -7,5 +7,13 @@
 - [ ] diff
 
 ## Vue3
-- [ ] 响应式源码
+### Composition API
+- [ ] setup
+- [ ] ref
+- [ ] reactive
+- [ ] watchEffect
+- [ ] watch
+- [ ] computed
+- [ ] toRefs
+- [ ] 生命周期的hooks
 
