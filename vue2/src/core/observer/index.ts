@@ -51,11 +51,18 @@ export class Observer {
 
   constructor(public value: any, public shallow = false, public mock = false) {
     // this.value = value
+    // 实例化一个 dep
     this.dep = mock ? mockDep : new Dep()
     this.vmCount = 0
+    // 在 value 对象上设置 __ob__ 属性
     def(value, '__ob__', this)
     if (isArray(value)) {
+      /**
+       * value 为数组
+       */
       if (!mock) {
+        // hasProto = '__proto__' in {}
+        // 用于判断对象是否存在 __proto__ 属性
         if (hasProto) {
           /* eslint-disable no-proto */
           ;(value as any).__proto__ = arrayMethods
@@ -68,6 +75,7 @@ export class Observer {
         }
       }
       if (!shallow) {
+        // 实现数组响应式
         this.observeArray(value)
       }
     } else {
@@ -75,6 +83,9 @@ export class Observer {
        * Walk through all properties and convert them into
        * getter/setters. This method should only be called when
        * value type is Object.
+       * 
+       * value 为对象
+       * 遍历 value 对象上的每个 key，为每个 key 设置响应式
        */
       const keys = Object.keys(value)
       for (let i = 0; i < keys.length; i++) {
@@ -86,6 +97,7 @@ export class Observer {
 
   /**
    * Observe a list of Array items.
+   * 遍历数组的每一项，并设置观察
    */
   observeArray(value: any[]) {
     for (let i = 0, l = value.length; i < l; i++) {
@@ -100,12 +112,15 @@ export class Observer {
  * Attempt to create an observer instance for a value,
  * returns the new observer if successfully observed,
  * or the existing observer if the value already has one.
+ * 响应式处理的真正入口
+ * 为对象创建观察者实例，如果对象已被观察过，则返回已有观察者实例，否则创建新的观察者实例
  */
 export function observe(
   value: any,
   shallow?: boolean,
   ssrMockReactivity?: boolean
 ): Observer | void {
+  // value对象上存在 __ob__ 属性，则表示已经观察过了，直接返回 __ob__ 属性
   if (value && hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     return value.__ob__
   }
@@ -118,6 +133,7 @@ export function observe(
     !isRef(value) &&
     !(value instanceof VNode)
   ) {
+    // 创建观察者实例
     return new Observer(value, shallow, ssrMockReactivity)
   }
 }
@@ -158,7 +174,7 @@ export function defineReactive(
 
   // 递归调用，处理 val 即 obj[key] 的值为对象的情况，保证对象中的所有 key 都被观察
   let childOb = !shallow && observe(val, false, mock)
-  /** 响应式的核心 */
+  /** 🔅响应式的核心 */
   Object.defineProperty(obj, key, {
     // 可枚举的
     enumerable: true,
@@ -192,6 +208,7 @@ export function defineReactive(
     },
     // set 拦截对 obj[key] 的设置操作
     set: function reactiveSetter(newVal) {
+      // 获取旧的值 obj[key]
       const value = getter ? getter.call(obj) : val
       // 如果新老值一样，则直接 return
       if (!hasChanged(value, newVal)) {
@@ -344,6 +361,7 @@ export function del(target: any[] | object, key: any) {
 /**
  * Collect dependencies on array elements when the array is touched, since
  * we cannot intercept array element access like property getters.
+ * 遍历每个数组元素，递归处理数组项是对象的情况，为其添加依赖
  */
 function dependArray(value: Array<any>) {
   for (let e, i = 0, l = value.length; i < l; i++) {
