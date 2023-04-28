@@ -33,6 +33,11 @@ export const emptyNode = new VNode('', {}, [])
 
 const hooks = ['create', 'activate', 'update', 'remove', 'destroy']
 
+/**
+ * 节点相同的条件：
+ * key、tag、注释isComment、data是否存在且相等；
+ * 若是input标签时type要相同
+ */
 function sameVnode(a, b) {
   return (
     a.key === b.key &&
@@ -417,14 +422,14 @@ export function createPatchFunction(backend) {
     insertedVnodeQueue,
     removeOnly
   ) {
-    let oldStartIdx = 0
-    let newStartIdx = 0
-    let oldEndIdx = oldCh.length - 1
-    let oldStartVnode = oldCh[0]
-    let oldEndVnode = oldCh[oldEndIdx]
-    let newEndIdx = newCh.length - 1
-    let newStartVnode = newCh[0]
-    let newEndVnode = newCh[newEndIdx]
+    let oldStartIdx = 0 // 旧节点起始位置
+    let newStartIdx = 0 // 新节点起始位置
+    let oldEndIdx = oldCh.length - 1 // 旧节点终止位置
+    let oldStartVnode = oldCh[0] // 旧节点起始值
+    let oldEndVnode = oldCh[oldEndIdx] // 旧节点终止值
+    let newEndIdx = newCh.length - 1 // 新节点终止位置
+    let newStartVnode = newCh[0] // 新节点起始值
+    let newEndVnode = newCh[newEndIdx] // 新节点终止值
     let oldKeyToIdx, idxInOld, vnodeToMove, refElm
 
     // removeOnly is a special flag used only by <transition-group>
@@ -435,13 +440,21 @@ export function createPatchFunction(backend) {
     if (__DEV__) {
       checkDuplicateKeys(newCh)
     }
-
+    // diff算法的核心：比较优化策略
+    // 循环遍历：oldStartIdx 和 newStartIdx 递增；oldEndIdx 和 newEndIdx 递减，当条件不符合跳出循环
     while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
+      // 如果 oldStartVnode 不存在，oldCh起始点向后移动
       if (isUndef(oldStartVnode)) {
         oldStartVnode = oldCh[++oldStartIdx] // Vnode has been moved left
-      } else if (isUndef(oldEndVnode)) {
+      }
+      // 如果 oldEndVnode 不存在，oldCh终止点向前移动
+      else if (isUndef(oldEndVnode)) {
         oldEndVnode = oldCh[--oldEndIdx]
-      } else if (sameVnode(oldStartVnode, newStartVnode)) {
+      }
+      /** oldStartIdx、newStartIdx、oldEndIdx、newEndIdx 两两对比：总共2*2=4种情况 */ 
+      // 1. 判断 oldStartVnode 和 newStartVnode 是否相同
+      else if (sameVnode(oldStartVnode, newStartVnode)) {
+        // 执行 patchVnode
         patchVnode(
           oldStartVnode,
           newStartVnode,
@@ -449,9 +462,12 @@ export function createPatchFunction(backend) {
           newCh,
           newStartIdx
         )
+        // oldStartIdx和newStartIdx同时向后移动一位
         oldStartVnode = oldCh[++oldStartIdx]
         newStartVnode = newCh[++newStartIdx]
-      } else if (sameVnode(oldEndVnode, newEndVnode)) {
+      }
+      // 2. 判断 oldEndVnode 和 newEndVnode 是否相同
+      else if (sameVnode(oldEndVnode, newEndVnode)) {
         patchVnode(
           oldEndVnode,
           newEndVnode,
@@ -459,9 +475,12 @@ export function createPatchFunction(backend) {
           newCh,
           newEndIdx
         )
+        // oldEndIdx和newEndIdx同时向前移动一位
         oldEndVnode = oldCh[--oldEndIdx]
         newEndVnode = newCh[--newEndIdx]
-      } else if (sameVnode(oldStartVnode, newEndVnode)) {
+      }
+      // 3. 判断 oldStartVnode 和 newEndVnode 是否相同
+      else if (sameVnode(oldStartVnode, newEndVnode)) {
         // Vnode moved right
         patchVnode(
           oldStartVnode,
@@ -478,7 +497,9 @@ export function createPatchFunction(backend) {
           )
         oldStartVnode = oldCh[++oldStartIdx]
         newEndVnode = newCh[--newEndIdx]
-      } else if (sameVnode(oldEndVnode, newStartVnode)) {
+      } 
+      // 4. 判断 oldEndVnode 和 newStartVnode 是否相同
+      else if (sameVnode(oldEndVnode, newStartVnode)) {
         // Vnode moved left
         patchVnode(
           oldEndVnode,
@@ -613,6 +634,7 @@ export function createPatchFunction(backend) {
     // note we only do this if the vnode is cloned -
     // if the new node is not cloned it means the render functions have been
     // reset by the hot-reload-api and we need to do a proper re-render.
+    // 复用新老节点被标记为static，新老节点key相同，新 vnode 是克隆所得， 或者新 vnode 有 v-once属性
     if (
       isTrue(vnode.isStatic) &&
       isTrue(oldVnode.isStatic) &&
@@ -628,29 +650,43 @@ export function createPatchFunction(backend) {
     if (isDef(data) && isDef((i = data.hook)) && isDef((i = i.prepatch))) {
       i(oldVnode, vnode)
     }
-
+    // 旧节点的children
     const oldCh = oldVnode.children
+    // 新节点的children
     const ch = vnode.children
     if (isDef(data) && isPatchable(vnode)) {
       for (i = 0; i < cbs.update.length; ++i) cbs.update[i](oldVnode, vnode)
       if (isDef((i = data.hook)) && isDef((i = i.update))) i(oldVnode, vnode)
     }
+    // 新节点vnode的text为undefined
     if (isUndef(vnode.text)) {
+      // 1. 新旧节点都有children
       if (isDef(oldCh) && isDef(ch)) {
         if (oldCh !== ch)
+          // 执行 updateChildren，比较子节点
           updateChildren(elm, oldCh, ch, insertedVnodeQueue, removeOnly)
-      } else if (isDef(ch)) {
+      } 
+      // 2. 新节点有chidren，旧节点无
+      else if (isDef(ch)) {
         if (__DEV__) {
           checkDuplicateKeys(ch)
         }
         if (isDef(oldVnode.text)) nodeOps.setTextContent(elm, '')
+        // 执行 addVnodes，新增节点
         addVnodes(elm, null, ch, 0, ch.length - 1, insertedVnodeQueue)
-      } else if (isDef(oldCh)) {
+      }
+      // 3. 旧节点有children，新节点无
+      else if (isDef(oldCh)) {
+        // 执行 removeVnodes，移除子节点
         removeVnodes(oldCh, 0, oldCh.length - 1)
-      } else if (isDef(oldVnode.text)) {
+      }
+      // 4. 新旧节点children都不存在，且旧节点存在text
+      else if (isDef(oldVnode.text)) {
+        // 清空文本
         nodeOps.setTextContent(elm, '')
       }
     } else if (oldVnode.text !== vnode.text) {
+      // 新旧节点都是文本节点，文本不同，替换文本
       nodeOps.setTextContent(elm, vnode.text)
     }
     if (isDef(data)) {
