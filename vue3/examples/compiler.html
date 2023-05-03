@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>render</title>
+    <script src="../packages/vue/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app">
+        <p>观察compiler编译的render函数</p>
+        <pre>{{renderFun}}</pre>
+    </div>
+    <script>
+        const { createApp } = Vue;
+        
+        const app = createApp({
+            data() {
+                return {
+                    message: 'hello world',
+                    renderFun: ''
+                }
+            }
+        }).mount('#app')
+        app.renderFun = app.$options.render
+    </script>
+</body>
+</html>

@@ -286,6 +286,7 @@ export const queuePostRenderEffect = __FEATURE_SUSPENSE__
  *
  * Custom renderers can pass in the platform specific types like this:
  *
+ * createRenderer 函数返回 render、createApp
  * ``` js
  * const { render, createApp } = createRenderer<Node, Element>({
  *   patchProp,
@@ -354,6 +355,19 @@ function baseCreateRenderer(
 
   // Note: functions inside this closure should use `const xxx = () => {}`
   // style in order to prevent being inlined by minifiers.
+  /**
+   * patch比较
+   * @param n1 旧节点
+   * @param n2 新节点
+   * @param container 需要挂载 dom 的容器
+   * @param anchor 挂载的参考元素
+   * @param parentComponent 父组件
+   * @param parentSuspense 
+   * @param isSVG 
+   * @param slotScopeIds 
+   * @param optimized 
+   * @returns 
+   */
   const patch: PatchFn = (
     n1,
     n2,
@@ -382,17 +396,23 @@ function baseCreateRenderer(
     }
 
     const { type, ref, shapeFlag } = n2
+    // 判断 n2 节点类型
     switch (type) {
+      // 文本节点
       case Text:
         processText(n1, n2, container, anchor)
         break
+      // 注释节点
       case Comment:
         processCommentNode(n1, n2, container, anchor)
         break
+      // 静态节点
       case Static:
         if (n1 == null) {
+          // 挂载静态节点
           mountStaticNode(n2, container, anchor, isSVG)
         } else if (__DEV__) {
+          // patch静态节点
           patchStaticNode(n1, n2, container, isSVG)
         }
         break
@@ -410,6 +430,7 @@ function baseCreateRenderer(
         )
         break
       default:
+        // 普通Dom节点
         if (shapeFlag & ShapeFlags.ELEMENT) {
           processElement(
             n1,
@@ -422,7 +443,10 @@ function baseCreateRenderer(
             slotScopeIds,
             optimized
           )
-        } else if (shapeFlag & ShapeFlags.COMPONENT) {
+        }
+        // 组件
+        else if (shapeFlag & ShapeFlags.COMPONENT) {
+          // 处理更新组件
           processComponent(
             n1,
             n2,
@@ -470,7 +494,7 @@ function baseCreateRenderer(
       setRef(ref, n1 && n1.ref, parentSuspense, n2 || n1, !n2)
     }
   }
-
+  // 处理文本
   const processText: ProcessTextOrCommentFn = (n1, n2, container, anchor) => {
     if (n1 == null) {
       hostInsert(
@@ -485,7 +509,7 @@ function baseCreateRenderer(
       }
     }
   }
-
+  // 处理注释节点
   const processCommentNode: ProcessTextOrCommentFn = (
     n1,
     n2,
@@ -503,7 +527,7 @@ function baseCreateRenderer(
       n2.el = n1.el
     }
   }
-
+  // 挂载静态节点
   const mountStaticNode = (
     n2: VNode,
     container: RendererElement,
@@ -524,6 +548,7 @@ function baseCreateRenderer(
 
   /**
    * Dev / HMR only
+   * patch 静态节点
    */
   const patchStaticNode = (
     n1: VNode,
@@ -572,7 +597,7 @@ function baseCreateRenderer(
     }
     hostRemove(anchor!)
   }
-
+  // 处理普通的DOM节点
   const processElement = (
     n1: VNode | null,
     n2: VNode,
@@ -586,6 +611,7 @@ function baseCreateRenderer(
   ) => {
     isSVG = isSVG || (n2.type as string) === 'svg'
     if (n1 == null) {
+      // 初始化挂载节点
       mountElement(
         n2,
         container,
@@ -597,6 +623,7 @@ function baseCreateRenderer(
         optimized
       )
     } else {
+      // patch 更新节点
       patchElement(
         n1,
         n2,
@@ -608,7 +635,7 @@ function baseCreateRenderer(
       )
     }
   }
-
+  // 初始化挂载节点
   const mountElement = (
     vnode: VNode,
     container: RendererElement,
@@ -632,9 +659,13 @@ function baseCreateRenderer(
 
     // mount children first, since some props may rely on child content
     // being already rendered, e.g. `<select value>`
+    // children 是text文本
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      // 生成文本
       hostSetElementText(el, vnode.children as string)
-    } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+    } 
+    else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+      // 处理子节点
       mountChildren(
         vnode.children as VNodeArrayChildren,
         el,
@@ -760,6 +791,7 @@ function baseCreateRenderer(
     }
   }
 
+  // 处理子节点children（递归）
   const mountChildren: MountChildrenFn = (
     children,
     container,
@@ -788,7 +820,7 @@ function baseCreateRenderer(
       )
     }
   }
-
+  // patch 更新节点
   const patchElement = (
     n1: VNode,
     n2: VNode,
@@ -1141,7 +1173,7 @@ function baseCreateRenderer(
       }
     }
   }
-
+  // 处理组件
   const processComponent = (
     n1: VNode | null,
     n2: VNode,
@@ -1154,7 +1186,8 @@ function baseCreateRenderer(
     optimized: boolean
   ) => {
     n2.slotScopeIds = slotScopeIds
-    if (n1 == null) {
+    if (n1 == null) {// 初始化
+      // 判断n2是否是keep-alive
       if (n2.shapeFlag & ShapeFlags.COMPONENT_KEPT_ALIVE) {
         ;(parentComponent!.ctx as KeepAliveContext).activate(
           n2,
@@ -1164,6 +1197,7 @@ function baseCreateRenderer(
           optimized
         )
       } else {
+        // 初始化 component
         mountComponent(
           n2,
           container,
@@ -1175,10 +1209,11 @@ function baseCreateRenderer(
         )
       }
     } else {
+      // 更新 component
       updateComponent(n1, n2, optimized)
     }
   }
-
+  // 初始化 component
   const mountComponent: MountComponentFn = (
     initialVNode,
     container,
@@ -1192,7 +1227,8 @@ function baseCreateRenderer(
     // mounting
     const compatMountInstance =
       __COMPAT__ && initialVNode.isCompatRoot && initialVNode.component
-    const instance: ComponentInternalInstance =
+    // 1. 创建 component instance实例
+      const instance: ComponentInternalInstance =
       compatMountInstance ||
       (initialVNode.component = createComponentInstance(
         initialVNode,
@@ -1219,6 +1255,7 @@ function baseCreateRenderer(
       if (__DEV__) {
         startMeasure(instance, `init`)
       }
+      // 2. 初始化 instance 上 props、slots、setup 函数
       setupComponent(instance)
       if (__DEV__) {
         endMeasure(instance, `init`)
@@ -1238,7 +1275,7 @@ function baseCreateRenderer(
       }
       return
     }
-
+    // 3. 设置并运行带副作用的渲染函数
     setupRenderEffect(
       instance,
       initialVNode,
@@ -1288,7 +1325,7 @@ function baseCreateRenderer(
       instance.vnode = n2
     }
   }
-
+  // 
   const setupRenderEffect: SetupRenderEffectFn = (
     instance,
     initialVNode,
@@ -1585,7 +1622,19 @@ function baseCreateRenderer(
     flushPreFlushCbs()
     resetTracking()
   }
-
+  /**
+   * diff 算法
+   * @param n1 
+   * @param n2 
+   * @param container 
+   * @param anchor 
+   * @param parentComponent 
+   * @param parentSuspense 
+   * @param isSVG 
+   * @param slotScopeIds 
+   * @param optimized 
+   * @returns 
+   */
   const patchChildren: PatchChildrenFn = (
     n1,
     n2,
@@ -2321,6 +2370,8 @@ function baseCreateRenderer(
         unmount(container._vnode, null, null, true)
       }
     } else {
+      // 调用 patch 比较
+      // container._vnode 旧节点、vnode 新节点
       patch(container._vnode || null, vnode, container, null, null, null, isSVG)
     }
     flushPreFlushCbs()
@@ -2348,7 +2399,7 @@ function baseCreateRenderer(
       internals as RendererInternals<Node, Element>
     )
   }
-
+  // 返回
   return {
     render,
     hydrate,

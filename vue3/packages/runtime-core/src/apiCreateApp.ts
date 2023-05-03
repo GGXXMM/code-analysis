@@ -187,6 +187,7 @@ export type CreateAppFunction<HostElement> = (
 
 let uid = 0
 
+// 初始化vue实例相关API
 export function createAppAPI<HostElement>(
   render: RootRenderFunction<HostElement>,
   hydrate?: RootHydrateFunction
@@ -228,6 +229,7 @@ export function createAppAPI<HostElement>(
         }
       },
 
+      // 插件注册
       use(plugin: Plugin, ...options: any[]) {
         if (installedPlugins.has(plugin)) {
           __DEV__ && warn(`Plugin has already been applied to target app.`)
@@ -245,7 +247,7 @@ export function createAppAPI<HostElement>(
         }
         return app
       },
-
+      // 混入
       mixin(mixin: ComponentOptions) {
         if (__FEATURE_OPTIONS_API__) {
           if (!context.mixins.includes(mixin)) {
@@ -262,6 +264,7 @@ export function createAppAPI<HostElement>(
         return app
       },
 
+      // 组件
       component(name: string, component?: Component): any {
         if (__DEV__) {
           validateComponentName(name, context.config)
@@ -275,7 +278,7 @@ export function createAppAPI<HostElement>(
         context.components[name] = component
         return app
       },
-
+      // 自定义指令
       directive(name: string, directive?: Directive) {
         if (__DEV__) {
           validateDirectiveName(name)
@@ -290,7 +293,7 @@ export function createAppAPI<HostElement>(
         context.directives[name] = directive
         return app
       },
-
+      // 挂载节点
       mount(
         rootContainer: HostElement,
         isHydrate?: boolean,
@@ -305,6 +308,7 @@ export function createAppAPI<HostElement>(
                 ` you need to unmount the previous app by calling \`app.unmount()\` first.`
             )
           }
+          // 创建 vnode
           const vnode = createVNode(
             rootComponent as ConcreteComponent,
             rootProps
@@ -345,7 +349,7 @@ export function createAppAPI<HostElement>(
           )
         }
       },
-
+      // 卸载
       unmount() {
         if (isMounted) {
           render(null, app._container)
@@ -358,7 +362,7 @@ export function createAppAPI<HostElement>(
           warn(`Cannot unmount an app that is not mounted.`)
         }
       },
-
+      // 注入
       provide(key, value) {
         if (__DEV__ && (key as string | symbol) in context.provides) {
           warn(

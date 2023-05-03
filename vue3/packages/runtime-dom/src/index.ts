@@ -62,6 +62,7 @@ export const hydrate = ((...args) => {
   ensureHydrationRenderer().hydrate(...args)
 }) as RootHydrateFunction
 
+// 入口：创建app实例，提供mount方法
 export const createApp = ((...args) => {
   const app = ensureRenderer().createApp(...args)
 
