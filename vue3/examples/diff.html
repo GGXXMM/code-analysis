@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>diff</title>
+    <script src="../packages/vue/dist/vue.global.js"></script>
+</head>
+
+<body>
+    <div id="demo">
+        <p v-for="item in list" :key="item.id">{{item.value}}</p>
+        <button @click="changeData">添加数据</button>
+    </div>
+    <script>
+        const { createApp, ref } = Vue;
+
+        const app = createApp({
+            setup() {
+                const list = ref([{
+                    id: '1',
+                    value: 'a'
+                }, {
+                    id: '2',
+                    value: 'b'
+                }, {
+                    id: '3',
+                    value: 'c'
+                }])
+                const changeData = () => {
+                   list.value.push({id: '4', value: 'd'})
+                }
+                return {
+                    list,
+                    changeData
+                }
+            }
+        }).mount('#demo')
+    </script>
+    
+</body>
+
+</html>

@@ -835,8 +835,8 @@ function baseCreateRenderer(
     // #1426 take the old vnode's patch flag into account since user may clone a
     // compiler-generated vnode, which de-opts to FULL_PROPS
     patchFlag |= n1.patchFlag & PatchFlags.FULL_PROPS
-    const oldProps = n1.props || EMPTY_OBJ
-    const newProps = n2.props || EMPTY_OBJ
+    const oldProps = n1.props || EMPTY_OBJ// 旧节点的 props
+    const newProps = n2.props || EMPTY_OBJ// 新节点的 props
     let vnodeHook: VNodeHook | undefined | null
 
     // disable recurse in beforeUpdate hooks
@@ -871,7 +871,7 @@ function baseCreateRenderer(
         traverseStaticChildren(n1, n2)
       }
     } else if (!optimized) {
-      // full diff
+      // 全量比对子节点更新
       patchChildren(
         n1,
         n2,
@@ -892,6 +892,7 @@ function baseCreateRenderer(
       // (i.e. at the exact same position in the source template)
       if (patchFlag & PatchFlags.FULL_PROPS) {
         // element props contain dynamic keys, full diff needed
+        // 对比 props 并更新
         patchProps(
           el,
           n2,
@@ -1255,7 +1256,7 @@ function baseCreateRenderer(
       if (__DEV__) {
         startMeasure(instance, `init`)
       }
-      // 2. 初始化 instance 上 props、slots、setup 函数
+      // 2. 初始化 instance 上 props、slots，执行组件的 setup 函数
       setupComponent(instance)
       if (__DEV__) {
         endMeasure(instance, `init`)
@@ -1291,7 +1292,7 @@ function baseCreateRenderer(
       endMeasure(instance, `mount`)
     }
   }
-
+  // 更新组件
   const updateComponent = (n1: VNode, n2: VNode, optimized: boolean) => {
     const instance = (n2.component = n1.component)!
     if (shouldUpdateComponent(n1, n2, optimized)) {
@@ -1325,7 +1326,7 @@ function baseCreateRenderer(
       instance.vnode = n2
     }
   }
-  // 
+  
   const setupRenderEffect: SetupRenderEffectFn = (
     instance,
     initialVNode,
@@ -1623,9 +1624,9 @@ function baseCreateRenderer(
     resetTracking()
   }
   /**
-   * diff 算法
-   * @param n1 
-   * @param n2 
+   * patch 子节点并更新
+   * @param n1 旧节点
+   * @param n2 新节点
    * @param container 
    * @param anchor 
    * @param parentComponent 
@@ -1646,8 +1647,10 @@ function baseCreateRenderer(
     slotScopeIds,
     optimized = false
   ) => {
+    // 旧节点的子节点
     const c1 = n1 && n1.children
     const prevShapeFlag = n1 ? n1.shapeFlag : 0
+    // 新节点的子节点
     const c2 = n2.children
 
     const { patchFlag, shapeFlag } = n2
@@ -1656,6 +1659,7 @@ function baseCreateRenderer(
       if (patchFlag & PatchFlags.KEYED_FRAGMENT) {
         // this could be either fully-keyed or mixed (some keyed some not)
         // presence of patchFlag means children are guaranteed to be arrays
+        // 有 key
         patchKeyedChildren(
           c1 as VNode[],
           c2 as VNodeArrayChildren,
@@ -1670,6 +1674,7 @@ function baseCreateRenderer(
         return
       } else if (patchFlag & PatchFlags.UNKEYED_FRAGMENT) {
         // unkeyed
+        // 无 key
         patchUnkeyedChildren(
           c1 as VNode[],
           c2 as VNodeArrayChildren,
@@ -1686,19 +1691,28 @@ function baseCreateRenderer(
     }
 
     // children has 3 possibilities: text, array or no children.
+    // 1. 新节点是文本
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       // text children fast path
+      // 旧节点是数组
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        // 卸载旧节点
         unmountChildren(c1 as VNode[], parentComponent, parentSuspense)
       }
       if (c2 !== c1) {
+        // 新旧节点都是文本，直接替换
         hostSetElementText(container, c2 as string)
       }
-    } else {
+    }
+    // 2. 新节点不是文本
+    else {
+      // 旧节点是数组
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         // prev children was array
+        // 新节点也是数组
         if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
           // two arrays, cannot assume anything, do full diff
+          // 进行新旧节点的 diff
           patchKeyedChildren(
             c1 as VNode[],
             c2 as VNodeArrayChildren,
@@ -1712,16 +1726,22 @@ function baseCreateRenderer(
           )
         } else {
           // no new children, just unmount old
+          // 卸载旧节点
           unmountChildren(c1 as VNode[], parentComponent, parentSuspense, true)
         }
       } else {
         // prev children was text OR null
         // new children is array OR null
+        // 旧节点不是数组，旧节点是文本
+        // 新节点不是文本，不是数组，则为空
         if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
+          // 清空文本
           hostSetElementText(container, '')
         }
         // mount new if array
+        // 新节点是数组
         if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          // 挂载新节点的 children
           mountChildren(
             c2 as VNodeArrayChildren,
             container,
@@ -1797,6 +1817,7 @@ function baseCreateRenderer(
   }
 
   // can be all-keyed or mixed
+  // diff 核心算法
   const patchKeyedChildren = (
     c1: VNode[],
     c2: VNodeArrayChildren,
@@ -1810,10 +1831,10 @@ function baseCreateRenderer(
   ) => {
     let i = 0
     const l2 = c2.length
-    let e1 = c1.length - 1 // prev ending index
-    let e2 = l2 - 1 // next ending index
+    let e1 = c1.length - 1 // 旧节点终止位置
+    let e2 = l2 - 1 // 新节点终止位置
 
-    // 1. sync from start
+    // 1. 从头比对
     // (a b) c
     // (a b) d e
     while (i <= e1 && i <= e2) {
@@ -1821,6 +1842,7 @@ function baseCreateRenderer(
       const n2 = (c2[i] = optimized
         ? cloneIfMounted(c2[i] as VNode)
         : normalizeVNode(c2[i]))
+      // 如果 n1、n2 相同，则递归patch
       if (isSameVNodeType(n1, n2)) {
         patch(
           n1,
@@ -1839,7 +1861,7 @@ function baseCreateRenderer(
       i++
     }
 
-    // 2. sync from end
+    // 2. 从尾比对
     // a (b c)
     // d e (b c)
     while (i <= e1 && i <= e2) {
@@ -1847,6 +1869,7 @@ function baseCreateRenderer(
       const n2 = (c2[e2] = optimized
         ? cloneIfMounted(c2[e2] as VNode)
         : normalizeVNode(c2[e2]))
+      // 如果 n1、n2 相同，则递归patch
       if (isSameVNodeType(n1, n2)) {
         patch(
           n1,
@@ -1866,7 +1889,7 @@ function baseCreateRenderer(
       e2--
     }
 
-    // 3. common sequence + mount
+    // 3. 如果有多余新节点，执行新增
     // (a b)
     // (a b) c
     // i = 2, e1 = 1, e2 = 2
@@ -1896,7 +1919,7 @@ function baseCreateRenderer(
       }
     }
 
-    // 4. common sequence + unmount
+    // 4. 如果有多余旧节点，则卸载
     // (a b) c
     // (a b)
     // i = 2, e1 = 2, e2 = 1
@@ -1910,15 +1933,16 @@ function baseCreateRenderer(
       }
     }
 
-    // 5. unknown sequence
+    // 5. 未知序列（移除、更新、移动、新增节点）
     // [i ... e1 + 1]: a b [c d e] f g
     // [i ... e2 + 1]: a b [e d c h] f g
     // i = 2, e1 = 4, e2 = 5
     else {
-      const s1 = i // prev starting index
-      const s2 = i // next starting index
+      const s1 = i // 旧子序列开始位置
+      const s2 = i // 新子序列开始位置
 
-      // 5.1 build key:index map for newChildren
+      // 5.1 构建 key:index 关系映射 map（记录旧节点元素在新节点中的位置关系）
+      // keyToNewIndexMap = {e: 2, d: 3, c: 4, h: 5}
       const keyToNewIndexMap: Map<string | number | symbol, number> = new Map()
       for (i = s2; i <= e2; i++) {
         const nextChild = (c2[i] = optimized
@@ -1936,24 +1960,27 @@ function baseCreateRenderer(
         }
       }
 
-      // 5.2 loop through old children left to be patched and try to patch
+      // 5.2 继续处理旧节点
       // matching nodes & remove nodes that are no longer present
       let j
-      let patched = 0
-      const toBePatched = e2 - s2 + 1
-      let moved = false
+      let patched = 0 // 记录新节点已更新的数目
+      const toBePatched = e2 - s2 + 1 // 记录新节点还有多少个没有更新
+      let moved = false // 标记是否有必要进行节点的位置移动
       // used to track whether any node has moved
-      let maxNewIndexSoFar = 0
+      let maxNewIndexSoFar = 0 // 标记是否有节点进行了位置移动
       // works as Map<newIndex, oldIndex>
       // Note that oldIndex is offset by +1
       // and oldIndex = 0 is a special value indicating the new node has
       // no corresponding old node.
       // used for determining longest stable subsequence
+      // 记录新节点在旧节点中的位置数组
       const newIndexToOldIndexMap = new Array(toBePatched)
+      // newIndexToOldIndexMap 全部置为 0
       for (i = 0; i < toBePatched; i++) newIndexToOldIndexMap[i] = 0
-
+      // 遍历旧子节点
       for (i = s1; i <= e1; i++) {
         const prevChild = c1[i]
+         // 还有多余的旧节点，则删除
         if (patched >= toBePatched) {
           // all new children have been patched so this can only be a removal
           unmount(prevChild, parentComponent, parentSuspense, true)
@@ -1961,6 +1988,7 @@ function baseCreateRenderer(
         }
         let newIndex
         if (prevChild.key != null) {
+          // 记录旧节点在新节点中的位置
           newIndex = keyToNewIndexMap.get(prevChild.key)
         } else {
           // key-less node, try to locate a key-less node of the same type
@@ -1974,15 +2002,20 @@ function baseCreateRenderer(
             }
           }
         }
+        // 如果旧节点不存在新节点中，则删除该节点
         if (newIndex === undefined) {
           unmount(prevChild, parentComponent, parentSuspense, true)
         } else {
           newIndexToOldIndexMap[newIndex - s2] = i + 1
+          // 默认不移动的话，所有位置映射都是增序排列
+          // 如果有移动，必然出现降序的情况
           if (newIndex >= maxNewIndexSoFar) {
             maxNewIndexSoFar = newIndex
           } else {
+            // 有移动
             moved = true
           }
+          // 更新节点
           patch(
             prevChild,
             c2[newIndex] as VNode,
@@ -1994,12 +2027,14 @@ function baseCreateRenderer(
             slotScopeIds,
             optimized
           )
+          // 记录更新的数量
           patched++
         }
       }
 
-      // 5.3 move and mount
+      // 5.3 移动和添加新节点
       // generate longest stable subsequence only when nodes have moved
+      // 获取最长递增序列（即最长公共序列，不需要移动的子序列）
       const increasingNewIndexSequence = moved
         ? getSequence(newIndexToOldIndexMap)
         : EMPTY_ARR
@@ -2010,8 +2045,10 @@ function baseCreateRenderer(
         const nextChild = c2[nextIndex] as VNode
         const anchor =
           nextIndex + 1 < l2 ? (c2[nextIndex + 1] as VNode).el : parentAnchor
+        // 如果新子序列中的节点在旧子序列不存在，则新增节点
         if (newIndexToOldIndexMap[i] === 0) {
           // mount new
+          // patch 新增节点
           patch(
             null,
             nextChild,
@@ -2024,10 +2061,11 @@ function baseCreateRenderer(
             optimized
           )
         } else if (moved) {
-          // move if:
-          // There is no stable subsequence (e.g. a reverse)
-          // OR current node is not among the stable sequence
+          // 需要移动且
+          // 没有最长递增子序列或
+          // 当前的节点不在最长递增子序列中
           if (j < 0 || i !== increasingNewIndexSequence[j]) {
+            // 移动节点
             move(nextChild, container, anchor, MoveType.REORDER)
           } else {
             j--
@@ -2455,40 +2493,60 @@ export function traverseStaticChildren(n1: VNode, n2: VNode, shallow = false) {
 }
 
 // https://en.wikipedia.org/wiki/Longest_increasing_subsequence
+/**
+ * 求最长递增子序列：贪心+二分查找
+ * @param arr 
+ * @returns 
+ */
 function getSequence(arr: number[]): number[] {
+  // 浅拷贝数组，不影响原数组 arr
   const p = arr.slice()
+  // 定义返回数组（最长递增子序列的下标）
   const result = [0]
   let i, j, u, v, c
   const len = arr.length
   for (i = 0; i < len; i++) {
+    // 获取当前下标对应元素
     const arrI = arr[i]
+    // 排除等于 0 的情况
     if (arrI !== 0) {
+      // 获取 result 中的最后一个元素
       j = result[result.length - 1]
+      // 当前值 > 最后一个元素，说明存在升序序列，将下标放入 result 返回数组
       if (arr[j] < arrI) {
+        // 存储在 result 更新前的最后一个索引的值
         p[i] = j
         result.push(i)
         continue
       }
-      u = 0
-      v = result.length - 1
+      u = 0 // 初始下标
+      v = result.length - 1 // 终止下标
+      // 二分查找，查找比 arrI 小的节点
       while (u < v) {
+        // 获取中间位置 c
         c = (u + v) >> 1
+        // 如果中间位的值 < arrI，则 u = 中间位 + 1
         if (arr[result[c]] < arrI) {
           u = c + 1
         } else {
+          // 否则，v = c（中间位置）
           v = c
         }
       }
+      // 如果 arr[result[u]] < arrI，则证明当前 证明当前 result 中存在的下标不是递增序列，则需要进行替换
       if (arrI < arr[result[u]]) {
         if (u > 0) {
           p[i] = result[u - 1]
         }
+        // 进行替换，替换为递增序列
         result[u] = i
       }
     }
   }
+
   u = result.length
   v = result[u - 1]
+  // 回溯数组p，找到最终的索引
   while (u-- > 0) {
     result[u] = v
     v = p[v]

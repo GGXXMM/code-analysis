@@ -13,13 +13,13 @@
         <pre>{{renderFun}}</pre>
     </div>
     <script>
-        const { createApp } = Vue;
+        const { createApp, ref } = Vue;
         
         const app = createApp({
-            data() {
+            setup() {
+                const renderFun = ref('')
                 return {
-                    message: 'hello world',
-                    renderFun: ''
+                    renderFun
                 }
             }
         }).mount('#app')
